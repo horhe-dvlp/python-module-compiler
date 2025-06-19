@@ -3,17 +3,15 @@
 # compile_to_pyc.sh
 #
 # Compiles all .py files in the given source directory into .pyc files,
-# preserving the directory structure, and outputs them into a new sibling
-# directory named <source>_compiled, excluding all original .py files and
-# __pycache__ folders.
+# preserving the directory structure, and outputs them into a specified
+# directory, excluding original .py files and __pycache__ folders.
 #
 # Usage:
-#   ./compile_to_pyc.sh /absolute/or/relative/path/to/source
+#   ./compile_to_pyc.sh --source <path> [--output <path>]
 #
-# Example:
-#   ./compile_to_pyc.sh ./src
-#
-# Output will be in ./src_compiled/
+# Examples:
+#   ./compile_to_pyc.sh --source ./src
+#   ./compile_to_pyc.sh --source ./src --output ./build/pyc
 # ------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -22,16 +20,66 @@ log_info() { echo "[INFO]  $1"; }
 log_error() { echo "[ERROR] $1" >&2; }
 log_success() { echo "[SUCCESS] $1"; }
 
-if [[ $# -ne 1 ]]; then
-  log_error "Please provide the path to a directory containing Python files."
-  echo "Usage: $0 <source_dir>"
+print_help() {
+  echo "Usage:"
+  echo "  $0 --source <path> [--output <path>]"
+  echo
+  echo "Options:"
+  echo "  --source <path>     Path to the source directory with .py files (required)"
+  echo "  --output <path>     Path to output compiled files (optional)"
+  echo "  -h, --help          Show this help message"
+  echo
+  echo "Examples:"
+  echo "  $0 --source ./src"
+  echo "  $0 --source ./src --output ./dist/pyc"
+  echo
+}
+
+SOURCE_DIR=""
+TARGET_DIR=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      print_help
+      exit 0
+      ;;
+    --source)
+      [[ $# -lt 2 ]] && { log_error "Missing argument for --source"; exit 1; }
+      SOURCE_DIR=$(realpath "$2")
+      shift 2
+      ;;
+    --output)
+      [[ $# -lt 2 ]] && { log_error "Missing argument for --output"; exit 1; }
+      TARGET_DIR=$(realpath "$2")
+      shift 2
+      ;;
+    *)
+      if [[ -z "$SOURCE_DIR" ]]; then
+        SOURCE_DIR=$(realpath "$1")
+        shift
+      else
+        log_error "Unknown argument: $1"
+        print_help
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+if [[ -z "$SOURCE_DIR" ]]; then
+  log_error "Source directory not specified."
+  print_help
   exit 1
 fi
 
-SOURCE_DIR=$(realpath "$1")
 [[ ! -d "$SOURCE_DIR" ]] && { log_error "Directory '$SOURCE_DIR' does not exist."; exit 1; }
 
-TARGET_DIR="${SOURCE_DIR}_compiled"
+if [[ -z "$TARGET_DIR" ]]; then
+  TARGET_DIR="${SOURCE_DIR}_compiled"
+fi
+
 log_info "Source directory: $SOURCE_DIR"
 log_info "Target directory: $TARGET_DIR"
 
